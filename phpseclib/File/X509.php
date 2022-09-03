@@ -1391,26 +1391,12 @@ class X509
     private function validateSignatureHelper($publicKeyAlgorithm, $publicKey, $signatureAlgorithm, $signature, $signatureSubject)
     {
         switch ($publicKeyAlgorithm) {
+            // load key with the correspondinf format
             case 'id-RSASSA-PSS':
                 $key = RSA::loadFormat('PSS', $publicKey);
                 break;
             case 'rsaEncryption':
                 $key = RSA::loadFormat('PKCS8', $publicKey);
-                switch ($signatureAlgorithm) {
-                    case 'md2WithRSAEncryption':
-                    case 'md5WithRSAEncryption':
-                    case 'sha1WithRSAEncryption':
-                    case 'sha224WithRSAEncryption':
-                    case 'sha256WithRSAEncryption':
-                    case 'sha384WithRSAEncryption':
-                    case 'sha512WithRSAEncryption':
-                        $key = $key
-                            ->withHash(preg_replace('#WithRSAEncryption$#', '', $signatureAlgorithm))
-                            ->withPadding(RSA::SIGNATURE_PKCS1);
-                        break;
-                    default:
-                        throw new UnsupportedAlgorithmException('Signature algorithm unsupported');
-                }
                 break;
             case 'id-Ed25519':
             case 'id-Ed448':
@@ -1418,36 +1404,45 @@ class X509
                 break;
             case 'id-ecPublicKey':
                 $key = EC::loadFormat('PKCS8', $publicKey);
-                switch ($signatureAlgorithm) {
-                    case 'ecdsa-with-SHA1':
-                    case 'ecdsa-with-SHA224':
-                    case 'ecdsa-with-SHA256':
-                    case 'ecdsa-with-SHA384':
-                    case 'ecdsa-with-SHA512':
-                        $key = $key
-                            ->withHash(preg_replace('#^ecdsa-with-#', '', strtolower($signatureAlgorithm)));
-                        break;
-                    default:
-                        throw new UnsupportedAlgorithmException('Signature algorithm unsupported');
-                }
                 break;
             case 'id-dsa':
                 $key = DSA::loadFormat('PKCS8', $publicKey);
-                switch ($signatureAlgorithm) {
-                    case 'id-dsa-with-sha1':
-                    case 'id-dsa-with-sha224':
-                    case 'id-dsa-with-sha256':
-                        $key = $key
-                            ->withHash(preg_replace('#^id-dsa-with-#', '', strtolower($signatureAlgorithm)));
-                        break;
-                    default:
-                        throw new UnsupportedAlgorithmException('Signature algorithm unsupported');
-                }
                 break;
             default:
                 throw new UnsupportedAlgorithmException('Public key algorithm unsupported');
         }
-
+        switch ($signatureAlgorithm) {
+            // set hashing and padding according to signature algorithm
+            case 'id-RSASSA-PSS':
+            case 'id-Ed25519':
+            case 'id-Ed448':
+                break;
+            case 'md2WithRSAEncryption':
+            case 'md5WithRSAEncryption':
+            case 'sha1WithRSAEncryption':
+            case 'sha224WithRSAEncryption':
+            case 'sha256WithRSAEncryption':
+            case 'sha384WithRSAEncryption':
+            case 'sha512WithRSAEncryption':
+                $key = $key
+                    ->withHash(preg_replace('#WithRSAEncryption$#', '', $signatureAlgorithm))
+                    ->withPadding(RSA::SIGNATURE_PKCS1);
+                break;
+            case 'ecdsa-with-SHA1':
+            case 'ecdsa-with-SHA224':
+            case 'ecdsa-with-SHA256':
+            case 'ecdsa-with-SHA384':
+            case 'ecdsa-with-SHA512':
+                $key = $key->withHash(preg_replace('#^ecdsa-with-#', '', strtolower($signatureAlgorithm)));
+                break;
+            case 'id-dsa-with-sha1':
+            case 'id-dsa-with-sha224':
+            case 'id-dsa-with-sha256':
+                $key = $key->withHash(preg_replace('#^id-dsa-with-#', '', strtolower($signatureAlgorithm)));
+                break;
+            default:
+                throw new UnsupportedAlgorithmException('Signature algorithm unsupported');
+        }
         return $key->verify($signatureSubject, $signature);
     }
 
